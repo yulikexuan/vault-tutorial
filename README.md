@@ -20,11 +20,11 @@
   - Validate vault server
     - ``` vault status ```
 
-### Put a Key
+### Put keys
 
   - ``` vault kv put secret/hello username=yul pw=123456 ```
 
-### Get key back
+### Get keys back
 
   - ``` vault kv get secret/hello ``` 
   - ``` vault kv get -format=json secret/hello ``` 
