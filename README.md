@@ -1,5 +1,7 @@
 # VAULT Tutorial
 
+## Basic Key/Value Operation
+
 ### Start a dev server
   - ``` vault server -dev ```
 
@@ -29,3 +31,22 @@
   - ``` vault kv get secret/hello ``` 
   - ``` vault kv get -format=json secret/hello ``` 
   - ``` vault kv get -format=json secret/hello | jq > secret.hello.json ``` 
+
+### Delete keys
+
+  - ``` vault kv delete secret/hello ```
+
+## The Concept of Secret Engine 
+
+### Add new path to a secret engine
+
+  - ``` vault secrets enable -path=kv kv ```
+    - Success! Enabled the kv secrets engine at: kv/
+
+### List all secrets
+
+  - ``` vault secrets list ```
+
+### Disable a secret path
+
+  - ``` vault secrets disable kv/ ```
