@@ -50,3 +50,19 @@
 ### Disable a secret path
 
   - ``` vault secrets disable kv/ ```
+
+
+## Token Authentication
+
+### To Create a New Token
+
+- ``` vault token create ```
+
+### Login with the new Token
+
+- ``` vault login s.iyNUhq8Ov4hIAx6snw5mB2nL ```
+
+### To Revoke a Token
+
+- ``` vault token revoke s.iyNUhq8Ov4hIAx6snw5mB2nL ```
+

@@ -1,3 +1,3 @@
-export VAULT_ADDR='http://127.0.0.1:8200'
-set VAULT_ADDR=http://127.0.0.1:8200
+SET VAULT_ADDR=http://127.0.0.1:8200
+SET VAULT_TOKEN=s.nleeqn5gCWQtSpOrePk8Ga3G
 echo 'DONE'
