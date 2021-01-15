@@ -38,7 +38,7 @@
 
 ## The Concept of Secret Engine 
 
-### Add new path to a secret engine
+### Add a New Path to a Secret Engine
 
   - ``` vault secrets enable -path=kv kv ```
     - Success! Enabled the kv secrets engine at: kv/
@@ -107,3 +107,93 @@
   - All authentication methods, except for the token auth method, can be disabled
 
   ``` vault auth disable github ```
+
+
+## [Policies and Authorization](https://learn.hashicorp.com/tutorials/vault/getting-started-policies?in=vault/getting-started)
+
+### To View the Default Policy
+
+- ``` vault policy read default ```
+
+### To Write a Policy
+
+- ``` vault policy write yul-policy yul-policy.hcl ```
+
+### To List all Policies
+
+- ``` vault policy list ```
+
+### To View the Contents of the Policy Defined
+
+- ``` vault policy read yul-policy ```
+
+### To Test the Policy Defined
+
+- Create a token and add yul-policy to it
+  
+    ``` vault token create -policy=yul-policy ```
+
+- Write a secret to the path "secret/data/creds"
+  - NOTE: When access a KV v2 secrets engine using the vault kv CLI commands, 
+    you can omit /data in the secret path.
+    - ``` VAULT_TOKEN=s.As7wnnbIS0i0MFvf7L3bNjqG vault kv put secret/creds pw=123456 ```
+
+  - Attempt to write to the secret/data/foo path
+    - ``` VAULT_TOKEN=s.As7wnnbIS0i0MFvf7L3bNjqG valut kv put secret/foo pw=888888 ```
+
+    
+### Associate Policies to Auth Methods
+
+- Check to verify that approle auth method has not been enabled at the path 
+  approle/
+  
+  ``` vault auth list | grep 'approle/' ```
+
+- If this command produces no output (i.e. approle/ is not listed), enable it 
+  before proceeding
+  
+  ``` vault auth enable approle ```
+
+  - Now, enable an AppRole role "my-role", to configure some basic token option 
+  - Attach the previously defined "yul-policy" policy to all tokens that it 
+    creates when applications authenticate with the role
+    
+    ``` 
+        $ vault write auth/approle/role/dev-role \
+        > secret_id_ttl=10m \
+        > token_num_uses=10 \
+        > token_ttl=20m \
+        > token_max_ttl=30m \
+        > secret_id_num_uses=40 \
+        > token_policies=yul-policy
+        Success! Data written to: auth/approle/role/dev-role
+    ```
+
+- To authenticate with AppRole, first fetch the role ID, and capture its value 
+  in a ROLE_ID environment variable 
+  
+  ``` export ROLE_ID="$(vault read -field=role_id auth/approle/role/dev-role/role-id)" ```
+
+- Get a secret ID (which is similar to a password for applications to use for 
+  AppRole authentication), and capture its value in the SECRET_ID environment 
+  variable
+  
+  ``` export SECRET_ID="$(vault write -f -field=secret_id auth/approle/role/my-role/secret-id)" ```
+- Finally, authenticate to AppRole with vault write by specifying the role path 
+  and passing the role ID and secret ID values with the respective options 
+  
+ ``` vault write auth/approle/login role_id="$ROLE_ID" secret_id="$SECRET_ID" ```
+ 
+    ``` 
+    $ vault write auth/approle/login role_id="$ROLE_ID" secret_id="$SECRET_ID"
+    Key                     Value
+    ---                     -----
+    token                   s.YHReLvH4EpsyvX9GsB01iAst
+    token_accessor          hPbUebVv70PPoDIgej3MAyOJ
+    token_duration          20m
+    token_renewable         true
+    token_policies          ["default" "yul-policy"]
+    identity_policies       []
+    policies                ["default" "yul-policy"]
+    token_meta_role_name    dev-role
+    ```
