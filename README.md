@@ -197,3 +197,168 @@
     policies                ["default" "yul-policy"]
     token_meta_role_name    dev-role
     ```
+
+## [Deploy Vault](https://learn.hashicorp.com/tutorials/vault/getting-started-deploy?in=vault/getting-started)
+
+- How to configure Vault, start Vault, use the seal/unseal process, and scale Vault
+
+### Configuring Vault
+
+- Also check [Configure Vault](https://learn.hashicorp.com/tutorials/vault/configure-vault)
+
+- Vault is configured using HCL files. The configuration file for Vault is 
+  relatively simple
+  
+  ``` 
+    storage "raft" {
+    path    = "./vault/data"
+    node_id = "node1"
+    }
+    
+    listener "tcp" {
+    address     = "127.0.0.1:8200"
+    tls_disable = 1
+    }
+    
+    api_addr = "http://127.0.0.1:8200"
+    cluster_addr = "https://127.0.0.1:8201"
+    ui = true
+  ```
+  
+- Within the configuration file, there are two primary configurations
+
+  1. storage - This is the physical backend that Vault uses for storage
+     - Up to this point the dev server has used "inmem" (in memory), 
+       but the example above uses integrated storage (raft), 
+       a much more production-ready backend
+  2. listener - One or more listeners determine how Vault listens for API 
+     requests
+     - The example above listens on localhost port 8200 without TLS
+       In your environment set VAULT_ADDR=http://127.0.0.1:8200 so the Vault 
+       client will connect without TLS
+
+- ``` api_addr ``` - Specifies the address to advertise to route client requests
+- ``` cluster_addr ``` - Indicates the address and port to be used for 
+  communication between the Vault nodes in a cluster
+
+### Starting the Server
+
+- The /vault/data directory that raft storage backend uses must exist
+  ``` mkdir -p vault/data ```
+
+- Set the -config flag to point to the proper path where you saved the 
+  configuration above
+  ``` vault server -config=config.hcl ```
+  - NOTE: If you get a warning message about ``` mlock``` not being supported, 
+    that is okay. However, for maximum security you should run Vault on a 
+    system that supports ``` mlock```
+
+### Initializing the Vault
+
+- Launch a new terminal session, and set VAULT_ADDR environment variable
+  ``` export VAULT_ADDR='http://127.0.0.1:8200' ```
+  
+- To initialize Vault use vault operator init
+  - This is an unauthenticated request, but it only works on a brand-new Vaults 
+    without existing data:
+    ``` vault operator init ```
+    ``` 
+    $ vault operator init
+    Unseal Key 1: <KEY_1>
+    Unseal Key 2: <KEY_2>
+    Unseal Key 3: <KEY_3>
+    Unseal Key 4: <KEY_4>
+    Unseal Key 5: <KEY_5>
+    
+    Initial Root Token: <TOKEN>
+    
+    Vault initialized with 5 key shares and a key threshold of 3. Please securely
+    distribute the key shares printed above. When the Vault is re-sealed,
+    restarted, or stopped, you must supply at least 3 of these keys to unseal it
+    before it can start servicing requests.
+    
+    Vault does not store the generated master key. Without at least 3 key to
+    reconstruct the master key, Vault will remain permanently sealed!
+    
+    It is possible to generate new unseal keys, provided you have a quorum of
+    existing unseal keys shares. See "vault operator rekey" for more information.
+    ```
+
+### Seal / Unseal
+
+- Begin unsealing the Vault
+
+  ``` vault operator unseal ```
+
+  ``` 
+    $ vault operator unseal <KEY_1>
+    Key                Value
+    ---                -----
+    Seal Type          shamir
+    Initialized        true
+    Sealed             true
+    Total Shares       5
+    Threshold          3
+    Unseal Progress    1/3
+    Unseal Nonce       4084ab9c-2a32-58c6-3945-cfc042827d00
+    Version            1.6.1
+    Storage Type       raft
+    HA Enabled         true
+    
+    yul@YuLi10 MINGW64 /c/TecsysDev/javaguru/projects/vault-space/vault-tutorial (main)
+    $ vault operator unseal <KEY_5>
+    Key                Value
+    ---                -----
+    Seal Type          shamir
+    Initialized        true
+    Sealed             true
+    Total Shares       5
+    Threshold          3
+    Unseal Progress    2/3
+    Unseal Nonce       4084ab9c-2a32-58c6-3945-cfc042827d00
+    Version            1.6.1
+    Storage Type       raft
+    HA Enabled         true
+    
+    yul@YuLi10 MINGW64 /c/TecsysDev/javaguru/projects/vault-space/vault-tutorial (main)
+    $ vault operator unseal <KEY_3>
+    Key                     Value
+    ---                     -----
+    Seal Type               shamir
+    Initialized             true
+    Sealed                  false
+    Total Shares            5
+    Threshold               3
+    Version                 1.6.1
+    Storage Type            raft
+    Cluster Name            vault-cluster-853f2a97
+    Cluster ID              b4428af6-9aef-9fc2-4c47-f93dc37db7eb
+    HA Enabled              true
+    HA Cluster              n/a
+    HA Mode                 standby
+    Active Node Address     <none>
+    Raft Committed Index    24
+    Raft Applied Index      24
+  ```
+  
+  - When the value for Sealed changes to false, the Vault is unsealed
+
+### Finally, authenticate as the initial root token
+
+  ``` vault login <TOKEN> ```
+
+### Reseal
+
+  ``` vault operator seal ```
+  - This lets a single operator lock down the Vault in an emergency without 
+    consulting other operators
+  - When the Vault is sealed again, it clears all of its state (including the 
+    encryption key) from memory. The Vault is secure and locked down from access
+
+### Clean up
+
+- To kill the Vault process from a command
+  ``` ps aux | grep "vault server" | grep -v grep | awk '{print $2}' | xargs kill ```
+
+- Delete the /vault/data directory which stores the encrypted Vault data
+  ``` rm -r vault/data  ```
