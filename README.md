@@ -362,3 +362,86 @@
 
 - Delete the /vault/data directory which stores the encrypted Vault data
   ``` rm -r vault/data  ```
+
+
+## [Using the HTTP APIs with Authentication](https://learn.hashicorp.com/tutorials/vault/getting-started-apis?in=vault/getting-started)
+
+### Accessing Secrets via the REST APIs
+
+- Prepare the config file ``` config.hcl ```
+
+  ``` 
+  storage "file" {
+      path = "vault-data"
+  }
+
+  listener "tcp" {
+      tls_disable = 1
+  }
+  ```
+
+- Start a new Vault instance using the newly created configuration
+
+  ``` vault server -config=config.hcl ```
+
+- Launch a new terminal session and use ``` curl ``` to initialize Vault with the API 
+
+> **_NOTE:_**  This example uses jq to process the JSON output for readability
+
+- ``` 
+    curl \
+        --request POST \
+        --data '{"secret_shares": 1, "secret_threshold": 1}' \
+        http://127.0.0.1:8200/v1/sys/init | jq
+  ```
+
+- The response should be JSON and looks something like this
+
+  ``` 
+      % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                     Dload  Upload   Total   Spent    Left  Speed
+    100   226  100   183  100    43   3050    716 --:--:-- --:--:-- --:--:--  3766
+    {
+        "keys": [
+            "eebaa70803b3b5c82f354846425b549b8c21330b35607fe570f2a65b259c2923"
+        ], // unseal key
+        "keys_base64": [
+            "7rqnCAOztcgvNUhGQltUm4whMws1YH/lcPKmWyWcKSM="
+        ],
+        "root_token": "s.SCgg8DGjX4rhXAsQzAqrDyKi" // initial root token
+    }
+  ```
+
+- Use the environment variable $VAULT_TOKEN to store the root token
+
+  ``` export VAULT_TOKEN="s.SCgg8DGjX4rhXAsQzAqrDyKi" ```
+
+- Using the unseal key from above, you can unseal the Vault via the HTTP API 
+
+  ``` 
+  curl \
+      --request POST \
+      --data '{"key": "7rqnCAOztcgvNUhGQltUm4whMws1YH/lcPKmWyWcKSM="}' \
+      http://127.0.0.1:8200/v1/sys/unseal | jq
+  ```
+
+  ``` 
+      % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                     Dload  Upload   Total   Spent    Left  Speed
+    100   315  100   260  100    55  16250   3437 --:--:-- --:--:-- --:--:-- 19687
+    {
+    "type": "shamir",
+    "initialized": true,
+    "sealed": false,
+    "t": 1,
+    "n": 1,
+    "progress": 0,
+    "nonce": "",
+    "version": "1.6.1",
+    "migration": false,
+    "cluster_name": "vault-cluster-8ab006ce",
+    "cluster_id": "c5eb793c-dcab-4f5b-9c0f-b72692305cc8",
+    "recovery_seal": false,
+    "storage_type": "file"
+    }
+  ```
